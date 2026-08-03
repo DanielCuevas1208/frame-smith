@@ -1,8 +1,16 @@
 # Frame Smith
 
-Frame Smith is a desktop image editor. It applies a chain of filters to an image. You see the result at once. You can reorder the filters in the chain.
+[![CI](https://github.com/DanielCuevas1208/frame-smith/actions/workflows/ci.yml/badge.svg)](https://github.com/DanielCuevas1208/frame-smith/actions/workflows/ci.yml)
 
-The project uses the Vala language and the GTK toolkit. It builds with Meson. It is a compact portfolio project.
+Frame Smith is a desktop image editor.
+It applies a chain of filters to an image.
+You see the result at once.
+You can reorder the filters in the chain.
+You can undo and redo each change.
+
+The project uses the Vala language and the GTK toolkit.
+It builds with Meson.
+It is a compact portfolio project.
 
 ## Features
 
@@ -13,6 +21,7 @@ The project uses the Vala language and the GTK toolkit. It builds with Meson. It
 - Split luminance with a threshold.
 - Adjust black point, white point, and gamma.
 - Reorder the filter chain.
+- Undo and redo filter edits.
 - View a per-channel histogram.
 - Save the result as PNG, JPEG, BMP, or TIFF.
 
@@ -20,9 +29,16 @@ The project uses the Vala language and the GTK toolkit. It builds with Meson. It
 
 The project has two layers.
 
-The core layer is `src/libframesmith`. It holds the pixel math. It has no toolkit code. This layer runs without a display. The tests use this layer directly.
+The core layer is `src/libframesmith`.
+It holds the pixel math.
+It has no toolkit code.
+This layer runs without a display.
+The tests use this layer directly.
 
-The GUI layer is `src/framesmith`. It handles the window and the controls. It converts between `Image` and `Gdk.Pixbuf`. It never processes pixels itself.
+The GUI layer is `src/framesmith`.
+It handles the window and the controls.
+It converts between `Image` and `Gdk.Pixbuf`.
+It never processes pixels itself.
 
 The processing flow is simple:
 
@@ -32,9 +48,15 @@ The processing flow is simple:
 4. Convert the result back to a pixbuf.
 5. Show the result and its histogram.
 
+The undo history stores snapshots of the filter chain.
+A snapshot is a copy of the chain.
+The pixel data stays untouched.
+This keeps undo fast and deterministic.
+
 ## Requirements
 
-Build the project on Linux. Use these packages:
+Build the project on Linux.
+Use these packages:
 
 - GTK 3.22 or newer
 - GdkPixbuf 2.40 or newer
@@ -55,7 +77,8 @@ Do these steps to build the project:
 1. Run `meson setup build`.
 2. Run `meson compile -C build`.
 
-The build uses `--fatal-warnings`. A Vala warning stops the build.
+The build uses `--fatal-warnings`.
+A Vala warning stops the build.
 
 ## Test
 
@@ -65,7 +88,8 @@ Run the tests with this command:
 meson test -C build --print-errorlogs
 ```
 
-The tests run without a display. They cover the filter math, the chain, and the file round trip.
+The tests run without a display.
+They cover the filter math, the chain, the undo history, and the file round trip.
 
 ## Run
 
@@ -75,7 +99,8 @@ Start the program with this command:
 ./build/framesmith data/sample.png
 ```
 
-The file `data/sample.png` is a test image. It has a sky, a sun, a hill, and a checker strip.
+The file `data/sample.png` is a test image.
+It has a sky, a sun, a hill, and a checker strip.
 
 ## Use
 
@@ -87,6 +112,10 @@ Follow these steps to edit an image:
 4. Change the filter parameters.
 5. Use the Up and Down buttons to reorder the chain.
 6. Click Save As to write the result.
+
+Press Ctrl+Z to undo the last change.
+Press Ctrl+Shift+Z to redo the undone change.
+The header buttons perform the same actions.
 
 ## Sample output
 
@@ -109,31 +138,48 @@ ok   chain applies in order
 ok   chain move reorders
 ok   empty chain is a copy
 core: 15 passed, 0 failed
+ok   history starts empty
+ok   push records a snapshot
+ok   undo restores the previous state
+ok   redo restores the undone state
+ok   undo clears on new push
+ok   push keeps past history
+ok   clear resets stacks
+ok   snapshots are independent
+history: 8 passed, 0 failed
 ok   loads the sample image
 ok   round trips png losslessly
 io: 2 passed, 0 failed
 ```
 
-The expected visual effects are simple. Blur softens the hill edge. Sharpen makes the checker squares stand out. Edge detect turns the shapes into outlines. Threshold turns the image into black and white.
+The expected visual effects are simple.
+Blur softens the hill edge.
+Sharpen makes the checker squares stand out.
+Edge detect turns the shapes into outlines.
+Threshold turns the image into black and white.
 
 ## Fixture
 
-The script `tools/generate_sample.py` creates the sample image. It uses only the Python standard library. The image is deterministic. The script has a `--check` mode. This mode compares decoded pixels, not file bytes.
+The script `tools/generate_sample.py` creates the sample image.
+It uses only the Python standard library.
+The image is deterministic.
+The script has a `--check` mode.
+This mode compares decoded pixels, not file bytes.
 
 ## Limitations
 
 - The project builds on Linux. Windows builds are not supported.
 - The preview renders at full resolution. Very large images can be slow.
-- There is no undo or redo yet.
 - The chain order changes with buttons, not by dragging.
 - Each filter has one parameter set. There is no curves editor yet.
+- The undo history holds the chain only. It does not hold the image pixels.
 
 ## Roadmap
 
 Version 0.2:
 
+- Undo and redo for filter edits. Done in 0.2.0.
 - Add drag-and-drop reordering.
-- Add undo and redo.
 - Add preview downscaling for large images.
 
 Version 0.3:
@@ -148,4 +194,5 @@ Version 0.4:
 
 ## License
 
-Frame Smith is released under the MIT License. See the `LICENSE` file.
+Frame Smith is released under the MIT License.
+See the `LICENSE` file.

@@ -1,5 +1,5 @@
 project('framesmith', ['vala', 'c'],
-  version: '0.1.0',
+  version: '0.2.0',
   license: 'MIT',
   meson_version: '>= 0.61.0',
   default_options: ['warning_level=2'])
@@ -16,6 +16,7 @@ core_sources = files(
   'src/libframesmith/convolution.vala',
   'src/libframesmith/filters.vala',
   'src/libframesmith/chain.vala',
+  'src/libframesmith/history.vala',
   'src/libframesmith/histogram.vala',
   'src/libframesmith/pixbuf_io.vala',
 )
@@ -44,7 +45,14 @@ io_test = executable('test-io',
   dependencies: core_deps,
   vala_args: vala_args)
 
+history_test = executable('test-history',
+  files('tests/harness.vala', 'tests/history_tests.vala') + core_sources,
+  dependencies: core_deps,
+  vala_args: vala_args)
+
 test('core', core_test)
+
+test('history', history_test)
 
 test('io', io_test,
   args: [join_paths(meson.project_source_root(), 'data', 'sample.png')])

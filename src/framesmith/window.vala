@@ -3,12 +3,15 @@ namespace FrameSmith {
 public class MainWindow : Gtk.ApplicationWindow {
     private Image? source_image;
     private FilterChain chain;
+    private ChainHistory history;
     private Gtk.Image preview_view;
     private Gtk.ScrolledWindow preview_scroller;
     private Gtk.Stack preview_stack;
     private Gtk.ListBox filter_list;
     private Gtk.Box params_box;
     private Gtk.ComboBoxText filter_chooser;
+    private Gtk.Button undo_button;
+    private Gtk.Button redo_button;
     private HistogramWidget histogram_widget;
     private Gtk.Statusbar statusbar;
     private uint status_context;
@@ -25,6 +28,7 @@ public class MainWindow : Gtk.ApplicationWindow {
 
     construct {
         chain = new FilterChain();
+        history = new ChainHistory();
 
         var header = new Gtk.HeaderBar();
         header.title = "Frame Smith";
@@ -40,7 +44,26 @@ public class MainWindow : Gtk.ApplicationWindow {
         save_button.tooltip_text = "Save the result";
         save_button.clicked.connect(on_save_clicked);
         header.pack_start(save_button);
+
+        undo_button = new Gtk.Button.from_icon_name("edit-undo", Gtk.IconSize.LARGE_TOOLBAR);
+        undo_button.tooltip_text = "Undo the last change";
+        undo_button.clicked.connect(on_undo_clicked);
+        header.pack_start(undo_button);
+
+        redo_button = new Gtk.Button.from_icon_name("edit-redo", Gtk.IconSize.LARGE_TOOLBAR);
+        redo_button.tooltip_text = "Redo the undone change";
+        redo_button.clicked.connect(on_redo_clicked);
+        header.pack_start(redo_button);
         set_titlebar(header);
+
+        var accel_group = new Gtk.AccelGroup();
+        add_accel_group(accel_group);
+        undo_button.add_accelerator("clicked", accel_group, Gdk.Key.z,
+                                    Gdk.ModifierType.CONTROL_MASK, Gtk.AccelFlags.VISIBLE);
+        redo_button.add_accelerator("clicked", accel_group, Gdk.Key.z,
+                                    Gdk.ModifierType.CONTROL_MASK | Gdk.ModifierType.SHIFT_MASK,
+                                    Gtk.AccelFlags.VISIBLE);
+        update_history_buttons();
 
         var placeholder = new Gtk.Label("Open an image to start.");
         placeholder.set_vexpand(true);
@@ -152,6 +175,8 @@ public class MainWindow : Gtk.ApplicationWindow {
         var image = PixbufIO.to_image(pixbuf);
         source_image = image;
         chain.clear();
+        history.clear();
+        update_history_buttons();
         selected_index = -1;
         refresh_filter_list();
         preview_stack.set_visible_child_name("preview");
@@ -236,19 +261,23 @@ public class MainWindow : Gtk.ApplicationWindow {
         var filter = FilterFactory.create(id);
         if (filter == null)
             return;
+        history.push(chain);
         chain.add(filter);
         selected_index = chain.size - 1;
         refresh_filter_list();
+        update_history_buttons();
         queue_preview();
     }
 
     private void on_remove_filter_clicked() {
         if (selected_index < 0)
             return;
+        history.push(chain);
         chain.remove_at(selected_index);
         if (selected_index >= chain.size)
             selected_index = chain.size - 1;
         refresh_filter_list();
+        update_history_buttons();
         queue_preview();
     }
 
@@ -256,11 +285,41 @@ public class MainWindow : Gtk.ApplicationWindow {
         if (selected_index < 0)
             return;
         int target = selected_index + delta;
-        if (chain.move(selected_index, target)) {
-            selected_index = target;
-            refresh_filter_list();
-            queue_preview();
-        }
+        if (target < 0 || target >= chain.size)
+            return;
+        history.push(chain);
+        chain.move(selected_index, target);
+        selected_index = target;
+        refresh_filter_list();
+        update_history_buttons();
+        queue_preview();
+    }
+
+    private void on_undo_clicked() {
+        var restored = history.undo(chain);
+        if (restored == null)
+            return;
+        chain = restored;
+        selected_index = -1;
+        refresh_filter_list();
+        update_history_buttons();
+        queue_preview();
+    }
+
+    private void on_redo_clicked() {
+        var restored = history.redo(chain);
+        if (restored == null)
+            return;
+        chain = restored;
+        selected_index = -1;
+        refresh_filter_list();
+        update_history_buttons();
+        queue_preview();
+    }
+
+    private void update_history_buttons() {
+        undo_button.sensitive = history.can_undo;
+        redo_button.sensitive = history.can_redo;
     }
 
     private void on_row_selected(Gtk.ListBox? box, Gtk.ListBoxRow? row) {
@@ -322,7 +381,12 @@ public class MainWindow : Gtk.ApplicationWindow {
                 var toggle = new Gtk.CheckButton.with_label(param.label);
                 toggle.active = param.value >= 0.5;
                 toggle.toggled.connect(() => {
-                    param.value = toggle.active ? 1.0 : 0.0;
+                    double new_value = toggle.active ? 1.0 : 0.0;
+                    if (new_value != param.value) {
+                        history.push(chain);
+                        update_history_buttons();
+                    }
+                    param.value = new_value;
                     queue_preview();
                 });
                 params_box.pack_start(toggle, false, false, 0);
@@ -336,6 +400,34 @@ public class MainWindow : Gtk.ApplicationWindow {
                 var scale = new Gtk.Scale(Gtk.Orientation.HORIZONTAL, adjustment);
                 scale.set_hexpand(true);
                 scale.draw_value = true;
+                scale.button_press_event.connect((event) => {
+                    history.push(chain);
+                    update_history_buttons();
+                    return false;
+                });
+                scale.scroll_event.connect((event) => {
+                    history.push(chain);
+                    update_history_buttons();
+                    return false;
+                });
+                scale.key_press_event.connect((event) => {
+                    switch (event.keyval) {
+                        case Gdk.Key.Up:
+                        case Gdk.Key.Down:
+                        case Gdk.Key.Left:
+                        case Gdk.Key.Right:
+                        case Gdk.Key.Page_Up:
+                        case Gdk.Key.Page_Down:
+                        case Gdk.Key.Home:
+                        case Gdk.Key.End:
+                            history.push(chain);
+                            update_history_buttons();
+                            break;
+                        default:
+                            break;
+                    }
+                    return false;
+                });
                 scale.value_changed.connect(() => {
                     param.value = adjustment.get_value();
                     queue_preview();
