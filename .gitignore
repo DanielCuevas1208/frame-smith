@@ -1,0 +1,31 @@
+# Build output
+/build/
+/build-*/
+/_build/
+/meson-private/
+/meson-logs/
+/meson-logs/meson-log.txt
+/.ninja_deps
+/.ninja_log
+/compile_commands.json
+
+# Compiled artifacts
+*.o
+*.a
+*.so
+*.so.*
+*.dll
+*.exe
+*.gch
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store

@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            valac \
+            meson \
+            ninja-build \
+            libgtk-3-dev \
+            libgdk-pixbuf-2.0-dev \
+            python3
+
+      - name: Verify sample fixture
+        run: python3 tools/generate_sample.py data/sample.png --check
+
+      - name: Configure build
+        run: meson setup build --buildtype=release
+
+      - name: Compile
+        run: meson compile -C build
+
+      - name: Run tests
+        run: meson test -C build --print-errorlogs
+
+      - name: Show test log on failure
+        if: failure()
+        run: cat build/meson-logs/testlog.txt

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Frame Smith
+Comment=Apply a chain of filters to images
+Exec=@bindir@/framesmith %U
+Icon=org.framesmith.FrameSmith
+Terminal=false
+Categories=Graphics;2DGraphics;RasterGraphics;
+Keywords=image;filter;blur;sharpen;edge;histogram;
