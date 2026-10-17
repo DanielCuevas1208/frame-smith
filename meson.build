@@ -9,7 +9,8 @@ gobject = dependency('gobject-2.0', version: '>= 2.56')
 gdkpixbuf = dependency('gdk-pixbuf-2.0', version: '>= 2.40')
 gtk = dependency('gtk+-3.0', version: '>= 3.22')
 
-core_deps = [glib, gobject, gdkpixbuf]
+math = meson.get_compiler('c').find_library('m', required: true)
+core_deps = [glib, gobject, gdkpixbuf, math]
 
 core_sources = files(
   'src/libframesmith/image.vala',
